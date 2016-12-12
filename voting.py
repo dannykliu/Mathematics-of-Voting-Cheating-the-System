@@ -1,20 +1,19 @@
 import optimization as optimize
-
-def dotProduct(vec1, vec2):
-	assert(len(vec1) == len(vec2))
-	answer = 0
-	for i in range(len(vec1)):
-		answer += vec1[i]*vec2[i]
-	return answer
+import linalg
 
 def addOnePreference(results, preference, occ):
+	'''
+	Adds the preference order of a single voter to the societal preference
+	'''
 	assert(set(results.keys()) >= set(list(preference)))
 	for i in range(len(preference)): 
 		results[preference[i]][i] += occ
 
 def countVotes(candidates, data):
 	'''
-	Returns number of votes each candidate receives
+	Returns the number of first, second, ..., nth place votes a candidate receives
+	Input: arr, dict[str -> num]
+	Output: dict[str -> arr]
 	'''
 	results = {}
 	numCandidates = len(candidates)
@@ -26,43 +25,44 @@ def countVotes(candidates, data):
 	return results
 
 def computeScores(votes, weighting): 
+	'''
+	The score a candidate receives is the dot product of the ranked votes he/she received with the weighting vector
+	Input: dict[str -> arr], arr
+	Output: dict[str -> num]
+	'''
 	scores = {}
 	for key in votes.keys():
-		scores[key] = round(dotProduct(votes[key], weighting), 2)
-	#print("COMPUTE SCORE: ", votes)
+		scores[key] = round(linalg.dot(votes[key], weighting), 2)
 	return scores
 
-def subtract(a, b):
-	'''
-	returns the result of a - b
-	'''
-	assert(len(a) == len(b))
-	result = []
-	for i in range(len(a)):
-		result.append(a[i] - b[i])
-	return result
-
 def findWV(candidates, data, winner):
-	initial_weighting = [i for i in range(len(candidates))][::-1] # [n-1, n-2, ..., 0]
+	'''
+	Input: 
+	list of candidates: ['A', 'B', 'C']
+	map of preferences -> occurence: ['BCA': 4, 'CBA': 10, 'ABC': 1]
+	who you want to win the election: 'B'
+	Output: tuple
+	weighting vector w that minimizes ||w-b||^2 and allows the specified winner to win
+	score each candidate has
+	'''
+	initial = [i for i in range(len(candidates))][::-1] 
 	votes = countVotes(candidates, data)
-	scores = computeScores(votes, initial_weighting)
+	scores = computeScores(votes, initial)
 	numCandidates = len(candidates)
 	systemWinner = max(scores, key=scores.get)
-	print("Points each candidate would receive under the Borda count \n" , scores)
 	if systemWinner == winner:
-		print(winner + " already wins!")
-		return
-	new_weight = optimize.makeYourCandidateWin(votes, winner, numCandidates)
-	print("New weighting weighting such that " + winner + " is the winner \n", new_weight)
-	new_scores = computeScores(votes, new_weight)
-	print("Points each candidate now receives under the new weighting vector \n", new_scores)
+		return (initial, scores)
+	new_weight = optimize.slsqp(votes, winner, numCandidates)
+	newScores = computeScores(votes, new_weight)
+	return (new_weight, newScores)
 
 
-findWV(['A', 'B', 'C'], {'BCA': 4, 'CBA': 10, 'ABC': 1}, 'B')
-print("------------------------------")
-findWV(['A', 'B', 'C'], {'ABC': 4, 'BCA': 1}, 'B')
-print("------------------------------")
-findWV(['A', 'B', 'C'], {'ABC': 4, 'BAC': 1}, 'B')
+print(findWV(['A', 'B', 'C'], {'BCA': 4, 'CBA': 10, 'ABC': 1}, 'B'))
+print(findWV(['A', 'B', 'C'], {'ABC': 4, 'BCA': 1}, 'B'))
+print(findWV(['A', 'B', 'C'], {'ABC': 4, 'BAC': 1}, 'B'))
+
+
+
 
 
 
